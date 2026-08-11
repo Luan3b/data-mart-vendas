@@ -22,18 +22,36 @@ def extrair_csvs():
   return df_clientes, df_produtos, df_lojas, df_vendas
 
 # Executa o Extract quando o arquivo for chamado diretamente
+def transformar_dados(df_clientes, df_produtos, df_lojas, df_vendas):
+
+    print("\n========== TRANSFORM ==========")
+
+    print("\n--- CLIENTES ---")
+    print(df_clientes.head())
+    print(df_clientes.info())
+
+    print("\n--- PRODUTOS ---")
+    print(df_produtos.head())
+    print(df_produtos.info())
+
+    print("\n--- LOJAS ---")
+    print(df_lojas.head())
+    print(df_lojas.info())
+
+    print("\n--- VENDAS ---")
+    print(df_vendas.head())
+    print(df_vendas.info())
+
+    return df_clientes, df_produtos, df_lojas, df_vendas
+
+
 if __name__ == "__main__":
 
-    df_clientes, df_produtos, df_lojas, df_vendas = extrair_csvs()
+    clientes, produtos, lojas, vendas = extrair_csvs()
 
-    print("\n========== CLIENTES ==========")
-    print(df_clientes.head())
-
-    print("\n========== PRODUTOS ==========")
-    print(df_produtos.head())
-
-    print("\n========== LOJAS ==========")
-    print(df_lojas.head())
-
-    print("\n========== VENDAS ==========")
-    print(df_vendas.head())
+    transformar_dados(
+        clientes,
+        produtos,
+        lojas,
+        vendas
+    )
