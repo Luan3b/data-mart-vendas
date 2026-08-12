@@ -1,0 +1,8 @@
+DROP TABLE IF EXISTS fato_vendas;
+DROP TABLE IF EXISTS dim_tempo;
+DROP TABLE IF EXISTS dim_loja;
+DROP TABLE IF EXISTS dim_produto;
+DROP TABLE IF EXISTS dim_cliente;
+DROP TABLE IF EXISTS dim_localizacao;
+
+DROP TABLE IF EXISTS LOJA

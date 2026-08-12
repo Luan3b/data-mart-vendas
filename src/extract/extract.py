@@ -10,7 +10,7 @@ def extrair_csvs():
 
   df_clientes = pd.read_csv(os.path.join(DATA_RAW_DIR, "Cadastro Clientes.xlsx - Planilha1.csv"))
   df_produtos = pd.read_csv(os.path.join(DATA_RAW_DIR, "Cadastro Produto.xlsx - Produto.csv"))
-  df_lojas = pd.read_csv(os.path.join(DATA_RAW_DIR, "Cadastro Lojas.xlsx - Planilha1.csv"))
+  df_lojas = pd.read_csv(os.path.join(DATA_RAW_DIR, "Cadastro Lojas.xlsx - Planilha1.csv"), header=3)
   df_vendas_2022 = pd.read_csv(os.path.join(DATA_RAW_DIR, "Base Vendas - 2022.xlsx - 2022.csv"))
   df_vendas_2024 = pd.read_csv(os.path.join(DATA_RAW_DIR, "Base Vendas - 2024.xlsx - 2024.csv"))
   df_vendas_2023 = pd.read_csv(os.path.join(DATA_RAW_DIR, "Base Vendas - 2023.xlsx - 2023.csv"))
