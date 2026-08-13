@@ -1,386 +1,291 @@
+import os
 import pandas as pd
 import psycopg2
+from dotenv import load_dotenv
 from psycopg2.extras import execute_values
 
-from src.extract.extract import extrair_csvs
+load_dotenv()
 
+from src.extract.extract import extrair_csvs
 from src.transform.transform import (
     transformar_clientes,
-    transformar_produtos,
+    transformar_fato_vendas,
+    transformar_localizacao,
     transformar_lojas,
+    transformar_produtos,
+    transformar_tempo,
 )
 
-
 DB_CONFIG = {
-    "host": "127.0.0.1",
-    "port": 5432,
-    "database": "postgres",
-    "user": "postgres",
-    "password": "123456",
+    "host": os.getenv("DB_HOST"),
+    "port": int(os.getenv("DB_PORT", 5432)),
+    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
 }
 
+
 def carregar_clientes(cursor, df):
-
-    print("\n[LOAD] Carregando clientes...")
-
-    dados = [
-        (
-            int(row.id_cliente),
-            str(row.nome_cliente),
-            str(row.genero),
-            row.data_nascimento.to_pydatetime()
-            if pd.notna(row.data_nascimento)
-            else None,
-        )
-        for row in df.itertuples(index=False)
-    ]
-
-    if not dados:
-        print("[LOAD] Nenhum cliente para carregar.")
-        return
-
-    execute_values(
-        cursor,
-        """
-        INSERT INTO dim_cliente (
-            id_cliente,
-            nome_cliente,
-            genero,
-            data_nascimento
-        )
-        VALUES %s
-        ON CONFLICT (id_cliente) DO NOTHING
-        """,
-        dados,
-        page_size=5000,
-    )
-
-    print(f"[LOAD] Clientes carregados: {len(dados):,}")
+  print("\n[LOAD] Carregando clientes...")
+  dados = [
+      (
+          int(r.id_cliente),
+          str(r.nome_cliente),
+          str(r.genero),
+          (
+              r.data_nascimento.to_pydatetime()
+              if pd.notna(r.data_nascimento)
+              else None
+          ),
+      )
+      for r in df.itertuples(index=False)
+  ]
+  execute_values(
+      cursor,
+      "INSERT INTO dim_cliente (id_cliente," 
+      " nome_cliente, " 
+      "genero,"
+      " data_nascimento)" 
+      " VALUES %s ON CONFLICT (id_cliente) DO NOTHING",
+      dados,
+      page_size=5000,
+  )
+  print(f"[LOAD] Clientes carregados: {len(dados):,}")
 
 
 def carregar_produtos(cursor, df):
+  print("\n[LOAD] Carregando produtos...")
+  dados = [
+      (
+          int(r.id_produto),
+          str(r.nome_produto),
+          str(r.categoria),
+          str(r.marca),
+          float(r.preco_unitario) if pd.notna(r.preco_unitario) else None,
+          float(r.custo_unitario) if pd.notna(r.custo_unitario) else None,
+      )
+      for r in df.itertuples(index=False)
+  ]
+  execute_values(
+      cursor,
+      "INSERT INTO dim_produto (id_produto," 
+      " nome_produto," 
+      " categoria, marca,"
+      " preco_unitario," 
+      " custo_unitario)" 
+      " VALUES %s ON CONFLICT (id_produto) DO NOTHING",
+      dados,
+      page_size=5000,
+  )
+  print(f"[LOAD] Produtos carregados: {len(dados):,}")
 
-    print("\n[LOAD] Carregando produtos...")
-
-    dados = [
-        (
-            int(row.id_produto),
-            str(row.nome_produto),
-            str(row.categoria),
-            str(row.marca),
-            float(row.preco_unitario)
-            if pd.notna(row.preco_unitario)
-            else None,
-            float(row.custo_unitario)
-            if pd.notna(row.custo_unitario)
-            else None,
-        )
-        
-        for row in df.itertuples(index=False)
-    ]
-
-    if not dados:
-        print("[LOAD] Nenhum produto para carregar.")
-        return
-
-    execute_values(
-        cursor,
-        """
-        INSERT INTO dim_produto (
-            id_produto,
-            nome_produto,
-            categoria,
-            marca,
-            preco_unitario,
-            custo_unitario
-        )
-        VALUES %s
-        ON CONFLICT (id_produto) DO NOTHING
-        """,
-        dados,
-        page_size=5000,
-    )
-
-    print(f"[LOAD] Produtos carregados: {len(dados):,}")
 
 def carregar_lojas(cursor, df):
+  print("\n[LOAD] Carregando lojas...")
+  dados = [
+      (int(r.id_loja), str(r.nome_loja), str(r.cidade), str(r.estado))
+      for r in df.itertuples(index=False)
+  ]
+  execute_values(
+      cursor,
+      "INSERT INTO dim_loja (id_loja, " 
+      "nome_loja," 
+      " cidade, estado)" 
+      "VALUES %s ON CONFLICT (id_loja) DO NOTHING",
+      dados,
+      page_size=5000,
+  )
+  print(f"[LOAD] Lojas carregadas: {len(dados):,}")
 
-    print("\n[LOAD] Carregando lojas...")
 
-    dados = [
-        (
-            int(row.id_loja),
-            str(row.nome_loja),
-            str(row.cidade),
-            str(row.estado),
-        )
-        for row in df.itertuples(index=False)
-    ]
+def carregar_localizacao(cursor, df):
+  print("\n[LOAD] Carregando localizações...")
+  dados = [
+      (str(r.cidade), str(r.estado), None, "Brasil")
+      for r in df.itertuples(index=False)
+  ]
+  execute_values(
+      cursor,
+      "INSERT INTO dim_localizacao (cidade," 
+      " estado," 
+      " sigla_estado," 
+      " pais)" 
+      " VALUES %s ON CONFLICT (cidade, estado) DO NOTHING",
+      dados,
+      page_size=1000,
+  )
+  print(f"[LOAD] Localizações carregadas: {len(dados):,}")
 
-    if not dados:
-        print("[LOAD] Nenhuma loja para carregar.")
-        return
 
-    execute_values(
-        cursor,
-        """
-        INSERT INTO dim_loja (
-            id_loja,
-            nome_loja,
-            cidade,
-            estado
-        )
-        VALUES %s
-        ON CONFLICT (id_loja) DO NOTHING
-        """,
-        dados,
-        page_size=5000,
-    )
+def carregar_tempo(cursor, df):
+  print("\n[LOAD] Carregando dimensão tempo...")
+  dados = [
+      (
+          int(r.sk_tempo),
+          r.data,
+          int(r.ano),
+          int(r.mes),
+          int(r.dia),
+          int(r.trimestre),
+      )
+      for r in df.itertuples(index=False)
+  ]
+  execute_values(
+      cursor,
+      "INSERT INTO dim_tempo (sk_tempo," 
+      " data, " 
+      "ano," 
+      " mes, " 
+      "dia," 
+      " trimestre)" 
+      " VALUES %s ON CONFLICT (sk_tempo) DO NOTHING",
+      dados,
+      page_size=1000,
+  )
+  print(f"[LOAD] Datas carregadas: {len(dados):,}")
 
-    print(f"[LOAD] Lojas carregadas: {len(dados):,}")
 
-def carregar_localizacao(cursor, df_lojas):
+def carregar_fato_vendas(cursor, df_fato):
+  print("\n[LOAD] Carregando tabela fato_vendas...")
+  dados = [
+      (
+          int(r.sk_cliente),
+          int(r.sk_produto),
+          int(r.sk_loja),
+          int(r.sk_tempo),
+          int(r.qtd_vendida),
+          int(r.qtd_devolvida),
+          int(r.qtd_liquida),
+          float(r.preco_unitario),
+          float(r.custo_unitario),
+          float(r.receita_bruta),
+          float(r.valor_devolvido),
+          float(r.receita_liquida),
+          float(r.custo_total),
+          float(r.lucro_bruto),
+      )
+      for r in df_fato.itertuples(index=False)
+  ]
+  if not dados:
+    print("[LOAD] Nenhum registro de venda para carregar.")
+    return
 
-    print("\n[LOAD] Carregando localizações...")
-
-    df = df_lojas[
-        [
-            "cidade",
-            "estado",
-        ]
-    ].copy()
-
-    df["cidade"] = (
-        df["cidade"]
-        .fillna("Não Informado")
-        .astype(str)
-        .str.strip()
-    )
-
-    df["estado"] = (
-        df["estado"]
-        .fillna("Não Informado")
-        .astype(str)
-        .str.strip()
-    )
-
-    df = df.drop_duplicates(
-        subset=["cidade", "estado"]
-    )
-
-    dados = [
-        (
-            str(row.cidade),
-            str(row.estado),
-            None,
-            "Brasil",
-        )
-        for row in df.itertuples(index=False)
-    ]
-
-    if not dados:
-        print("[LOAD] Nenhuma localização para carregar.")
-        return
-
-    execute_values(
-        cursor,
-        """
-        INSERT INTO dim_localizacao (
-            cidade,
-            estado,
-            sigla_estado,
-            pais
-        )
-        VALUES %s
-        ON CONFLICT (cidade, estado) DO NOTHING
-        """,
-        dados,
-        page_size=1000,
-    )
-
-    print(f"[LOAD] Localizações carregadas: {len(dados):,}")
-
-def carregar_tempo(cursor, df_vendas):
-
-    print("\n[LOAD] Carregando dimensão tempo...")
-
-    df = df_vendas.copy()
-
-    df["data_venda"] = pd.to_datetime(
-        df["Data Venda"],
-        errors="coerce"
-    )
-
-    df = df.dropna(
-        subset=["data_venda"]
-    )
-
-    df["data"] = df["data_venda"].dt.date
-    df["sk_tempo"] = df["data_venda"].dt.strftime("%Y%m%d").astype(int)
-    df["ano"] = df["data_venda"].dt.year
-    df["mes"] = df["data_venda"].dt.month
-    df["dia"] = df["data_venda"].dt.day
-    df["trimestre"] = df["data_venda"].dt.quarter
-
-    df = df[
-        [
-            "sk_tempo",
-            "data",
-            "ano",
-            "mes",
-            "dia",
-            "trimestre",
-        ]
-    ].drop_duplicates(
-        subset=["sk_tempo"]
-    )
-
-    dados = [
-        (
-            int(row.sk_tempo),
-            row.data,
-            int(row.ano),
-            int(row.mes),
-            int(row.dia),
-            int(row.trimestre),
-        )
-        for row in df.itertuples(index=False)
-    ]
-
-    if not dados:
-        print("[LOAD] Nenhuma data para carregar.")
-        return
-
-    execute_values(
-        cursor,
-        """
-        INSERT INTO dim_tempo (
+  execute_values(
+      cursor,
+      """
+        INSERT INTO fato_vendas (
+            sk_cliente,
+            sk_produto,
+            sk_loja, 
             sk_tempo,
-            data,
-            ano,
-            mes,
-            dia,
-            trimestre
-        )
-        VALUES %s
-        ON CONFLICT (sk_tempo) DO NOTHING
+            qtd_vendida, 
+            qtd_devolvida, 
+            qtd_liquida,
+            preco_unitario,
+            custo_unitario,
+            receita_bruta,
+            valor_devolvido,
+            receita_liquida, 
+            custo_total, 
+            lucro_bruto
+        ) VALUES %s
         """,
-        dados,
-        page_size=1000,
-    )
-
-    print(f"[LOAD] Datas carregadas: {len(dados):,}")
+      dados,
+      page_size=10000,
+  )
+  print(f"[LOAD] Fato Vendas carregada: {len(dados):,} registros inseridos!")
 
 
 def conectar_banco():
+  print("\n[LOAD] Conectando ao PostgreSQL...")
+  conexao = psycopg2.connect(
+      host=DB_CONFIG["host"],
+      port=DB_CONFIG["port"],
+      database=DB_CONFIG["database"],
+      user=DB_CONFIG["user"],
+      password=DB_CONFIG["password"],
+  )
+  print("[LOAD] Conexão realizada com sucesso!")
+  return conexao
 
-    print("\n[LOAD] Conectando ao PostgreSQL...")
-
-    conexao = psycopg2.connect(
-        host=DB_CONFIG["host"],
-        port=DB_CONFIG["port"],
-        database=DB_CONFIG["database"],
-        user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-    )
-
-    print("[LOAD] Conexão realizada com sucesso!")
-
-    return conexao
 
 def main():
+  print("\n========================================")
+  print("           ETL - PIPELINE")
+  print("========================================")
 
+  # 1. EXTRAÇÃO
+  df_cli_raw, df_prod_raw, df_loja_raw, df_vendas_raw = extrair_csvs()
+
+  # 2. TRANSFORMAÇÃO DE DIMENSÕES
+  print("\n[TRANSFORM] Processando dimensões...")
+  df_cli = transformar_clientes(df_cli_raw)
+  df_prod = transformar_produtos(df_prod_raw)
+  df_lojas = transformar_lojas(df_loja_raw)
+  df_loc = transformar_localizacao(df_lojas)
+  df_tempo = transformar_tempo(df_vendas_raw)
+
+  print("\n[TRANSFORM] Dados transformados com sucesso!")
+  print(f"Clientes: {len(df_cli):,}")
+  print(f"Produtos: {len(df_prod):,}")
+  print(f"Lojas: {len(df_lojas):,}")
+  print(f"Vendas Raw: {len(df_vendas_raw):,}")
+
+  # Mapeamento dos custos dos produtos para cálculo da fato
+  map_custos = dict(
+      zip(df_prod["id_produto"].dropna(), df_prod["custo_unitario"])
+  )
+
+  # 3. CONEXÃO E CARGA DE DIMENSÕES
+  conexao = conectar_banco()
+  try:
+    cursor = conexao.cursor()
+
+    carregar_clientes(cursor, df_cli)
+    carregar_produtos(cursor, df_prod)
+    carregar_lojas(cursor, df_lojas)
+    carregar_localizacao(cursor, df_loc)
+    carregar_tempo(cursor, df_tempo)
+
+    # 4. BUSCA MAPAS DAS SURROGATE KEYS NO BANCO (id_* -> sk_*)
+    cursor.execute("SELECT id_cliente, sk_cliente FROM dim_cliente")
+    map_cli = dict(cursor.fetchall())
+
+    cursor.execute("SELECT id_produto, sk_produto FROM dim_produto")
+    map_prod = dict(cursor.fetchall())
+
+    cursor.execute("SELECT id_loja, sk_loja FROM dim_loja")
+    map_loja = dict(cursor.fetchall())
+
+    # 5. TRANSFORMAÇÃO DA FATO E CARGA
+    print("\n[TRANSFORM] Processando fato_vendas...")
+    df_fato = transformar_fato_vendas(
+        df_vendas_raw, map_cli, map_prod, map_loja, map_custos
+    )
+
+    carregar_fato_vendas(cursor, df_fato)
+
+    conexao.commit()
     print("\n========================================")
-    print("           ETL - LOAD")
+    print("       ETL FINALIZADO COM SUCESSO")
     print("========================================")
 
+  except Exception as e:
+    conexao.rollback()
+    print("\n[ERRO] Falha durante o LOAD.")
+    print(f"[ERRO] {e}")
+    raise
+  finally:
+    cursor.close()
+    conexao.close()
+    print("[LOAD] Conexão encerrada.")
 
-    (
-        df_clientes_raw,
-        df_produtos_raw,
-        df_lojas_raw,
-        df_vendas_raw,
-    ) = extrair_csvs()
-
-    print("\n[TRANSFORM] Transformando dados...")
-
-    clientes = transformar_clientes(
-        df_clientes_raw
-    )
-
-    produtos = transformar_produtos(
-        df_produtos_raw
-    )
-
-    lojas = transformar_lojas(
-        df_lojas_raw
-    )
-
-    print("\n[TRANSFORM] Dados transformados com sucesso!")
-
-    print(f"Clientes: {len(clientes):,}")
-    print(f"Produtos: {len(produtos):,}")
-    print(f"Lojas: {len(lojas):,}")
-    print(f"Vendas: {len(df_vendas_raw):,}")
-
-    conexao = conectar_banco()
-
-    try:
-
-        cursor = conexao.cursor()
-
-        carregar_clientes(
-            cursor,
-            clientes
-        )
-
-        carregar_produtos(
-            cursor,
-            produtos
-        )
-
-        carregar_lojas(
-            cursor,
-            lojas
-        )
-
-        carregar_localizacao(
-            cursor,
-            lojas
-        )
-
-        carregar_tempo(
-            cursor,
-            df_vendas_raw
-        )
-
-        conexao.commit()
-
-        print("\n========================================")
-        print("       LOAD FINALIZADO COM SUCESSO")
-        print("========================================")
-
-    except Exception as erro:
-
-        conexao.rollback()
-
-        print("\n[ERRO] Falha durante o LOAD.")
-        print(f"[ERRO] {erro}")
-
-        raise
-
-    finally:
-
-        cursor.close()
-        conexao.close()
-
-        print("[LOAD] Conexão encerrada.")
 
 if __name__ == "__main__":
-    main()
+  main()
 
 
-"""
+  """
 import pandas as pd
 import psycopg2
 
