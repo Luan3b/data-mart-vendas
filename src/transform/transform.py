@@ -121,84 +121,95 @@ def transformar_lojas(df_raw):
      subset=["id_loja"]
  )
 
+def transformar_localizacao(df_lojas):
+  df = df_lojas[["cidade", "estado"]].copy()
+  df["cidade"] = df["cidade"].fillna("Não Informado").astype(str).str.strip()
+  df["estado"] = df["estado"].fillna("Não Informado").astype(str).str.strip()
+  return df.drop_duplicates(subset=["cidade", "estado"])
+
+def transformar_tempo(df_vendas):
+
+    df = df_vendas.copy()
+
+    df["data_venda"] = pd.to_datetime(
+        df["Data Venda"],
+        errors="coerce"
+    )
+
+    df = df.dropna(
+        subset=["data_venda"]
+    )
+
+    df["data"] = df["data_venda"].dt.date
+    df["sk_tempo"] = df["data_venda"].dt.strftime("%Y%m%d").astype(int)
+    df["ano"] = df["data_venda"].dt.year
+    df["mes"] = df["data_venda"].dt.month
+    df["dia"] = df["data_venda"].dt.day
+    df["trimestre"] = df["data_venda"].dt.quarter
+    return df[
+      ["sk_tempo", "data", "ano", "mes", "dia", "trimestre"]
+  ].drop_duplicates(subset=["sk_tempo"])
+
 # 4. TRANSFORMAÇÃO DA TABELA FATO DE VENDAS
 def transformar_fato_vendas(
-   df_vendas_raw, dim_cli_db, dim_prod_db, dim_loja_db
+    df_vendas_raw, map_clientes, map_produtos, map_lojas, map_custos
 ):
- df = df_vendas_raw.copy()
+  df = df_vendas_raw.copy()
 
- df["Id Cliente"] = pd.to_numeric(
-     df["Id Cliente"], errors="coerce"
- ).astype("Int64")
- df["Id Produto"] = pd.to_numeric(
-     df["Id Produto"], errors="coerce"
- ).astype("Int64")
- df["Id Loja"] = pd.to_numeric(df["Id Loja"], errors="coerce").astype("Int64")
+  df["id_cliente"] = pd.to_numeric(
+      df["Id Cliente"], errors="coerce"
+  ).astype("Int64")
+  df["id_produto"] = pd.to_numeric(
+      df["Id Produto"], errors="coerce"
+  ).astype("Int64")
+  df["id_loja"] = pd.to_numeric(df["Id Loja"], errors="coerce").astype("Int64")
 
- df["Preco Unitario"] = df["Preco Unitario"].apply(tratar_preco)
+  # Lookup de Surrogate Keys
+  df["sk_cliente"] = df["id_cliente"].map(map_clientes)
+  df["sk_produto"] = df["id_produto"].map(map_produtos)
+  df["sk_loja"] = df["id_loja"].map(map_lojas)
 
- # Lookups com as dimensões vindas do banco de dados
- df_fato = df.merge(
-     dim_cli_db, left_on="Id Cliente", right_on="id_cliente", how="inner"
- )
- df_fato = df_fato.merge(
-     dim_prod_db, left_on="Id Produto", right_on="id_produto", how="inner"
- )
- df_fato = df_fato.merge(
-     dim_loja_db, left_on="Id Loja", right_on="id_loja", how="inner"
- )
+  df["data_venda"] = pd.to_datetime(df["Data Venda"], errors="coerce")
+  df["sk_tempo"] = df["data_venda"].dt.strftime("%Y%m%d").astype("Int64")
 
- df_fato["sk_tempo"] = (
-     pd.to_datetime(df_fato["Data Venda"]).dt.strftime("%Y%m%d").astype(int)
- )
+  df = df.dropna(subset=["sk_cliente", "sk_produto", "sk_loja", "sk_tempo"])
 
- df_fato["qtd_vendida"] = (
-     pd.to_numeric(df_fato["Qtd. Vendida"], errors="coerce")
-     .fillna(0)
-     .astype(int)
- )
- df_fato["qtd_devolvida"] = (
-     pd.to_numeric(df_fato["Qtd. Devolvida"], errors="coerce")
-     .fillna(0)
-     .astype(int)
- )
- df_fato["qtd_liquida"] = df_fato["qtd_vendida"] - df_fato["qtd_devolvida"]
+  # Tratamento e Cálculo de Métricas
+  df["qtd_vendida"] = (
+      pd.to_numeric(df["Qtd. Vendida"], errors="coerce").fillna(0).astype(int)
+  )
+  df["qtd_devolvida"] = (
+      pd.to_numeric(df["Qtd. Devolvida"], errors="coerce").fillna(0).astype(int)
+  )
+  df["qtd_liquida"] = df["qtd_vendida"] - df["qtd_devolvida"]
 
- df_fato["preco_unitario"] = df_fato["Preco Unitario"].fillna(0.0)
- df_fato["custo_unitario"] = df_fato["custo_unitario"].fillna(0.0)
+  df["preco_unitario"] = df["Preco Unitario"].apply(tratar_preco).fillna(0.0)
+  df["custo_unitario"] = (
+      df["id_produto"].map(map_custos).fillna(0.0).astype(float)
+  )
 
- df_fato["receita_bruta"] = (
-     df_fato["qtd_vendida"] * df_fato["preco_unitario"]
- )
- df_fato["valor_devolvido"] = (
-     df_fato["qtd_devolvida"] * df_fato["preco_unitario"]
- )
- df_fato["receita_liquida"] = (
-     df_fato["receita_bruta"] - df_fato["valor_devolvido"]
- )
- df_fato["custo_total"] = (
-     df_fato["qtd_liquida"] * df_fato["custo_unitario"]
- )
- df_fato["lucro_bruto"] = df_fato["receita_liquida"] - df_fato["custo_total"]
+  df["receita_bruta"] = df["qtd_vendida"] * df["preco_unitario"]
+  df["valor_devolvido"] = df["qtd_devolvida"] * df["preco_unitario"]
+  df["receita_liquida"] = df["receita_bruta"] - df["valor_devolvido"]
+  df["custo_total"] = df["qtd_liquida"] * df["custo_unitario"]
+  df["lucro_bruto"] = df["receita_liquida"] - df["custo_total"]
 
- payload_fato = df_fato[[
-     "sk_cliente",
-     "sk_produto",
-     "sk_loja",
-     "sk_tempo",
-     "qtd_vendida",
-     "qtd_devolvida",
-     "qtd_liquida",
-     "preco_unitario",
-     "custo_unitario",
-     "receita_bruta",
-     "valor_devolvido",
-     "receita_liquida",
-     "custo_total",
-     "lucro_bruto",
- ]]
-
- return payload_fato
+  return df[[
+      "sk_cliente",
+      "sk_produto",
+      "sk_loja",
+      "sk_tempo",
+      "qtd_vendida",
+      "qtd_devolvida",
+      "qtd_liquida",
+      "preco_unitario",
+      "custo_unitario",
+      "receita_bruta",
+      "valor_devolvido",
+      "receita_liquida",
+      "custo_total",
+      "lucro_bruto",
+  ]]
 
 # 5. DIAGNÓSTICO E INSPEÇÃO
 def transformar_dados(df_clientes, df_produtos, df_lojas, df_vendas):
