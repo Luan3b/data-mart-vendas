@@ -478,28 +478,4 @@ PANDAS_ENCODING=utf-8
 
 ---
 
-## 🎓 Próximas Etapas
-
-- [ ] Implementar modo `incremental` (apenas dados novos)
-- [ ] Completar `04_queries.sql` com análises prontas
-- [ ] Criar dashboard em Metabase/Superset
-- [ ] Adicionar CI/CD com GitHub Actions
-- [ ] Dockerizar para produção
-- [ ] Implementar retenção de histórico (SCD Type 2)
-
----
-
-## 📝 Licença
-
-Projeto educacional - Livre para uso e modificação.
-
----
-
-## 👨‍💻 Autor
-
-Construído como parte de projeto de **Data Engineering & Analytics**.
-
-Para dúvidas, abrir issue ou enviar PR! 🚀
-
----
 
