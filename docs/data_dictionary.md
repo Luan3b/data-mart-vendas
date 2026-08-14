@@ -48,7 +48,7 @@ Contexto demográfico e cadastral dos clientes.
 Catálogo de produtos, categorização de mercado e custos de referência.
 
 |      Coluna     |Tipo de Dado| Nulo? | Descrição |
-
+| :--- | :--- | :--- | :--- |
 | `sk_produto`    | `INTEGER` | NÃO | Surrogate Key primária da dimensão |
 | `id_produto`    | `INTEGER` | NÃO | Natural Key (identificador original do produto) |
 | `nome_produto`  | `VARCHAR` | NÃO | Descrição comercial do produto |
@@ -63,7 +63,7 @@ Catálogo de produtos, categorização de mercado e custos de referência.
 Identificação das unidades físicas e associação com localizações.
 
 |    Coluna  | Tipo de Dado | Nulo? | Descrição |
-
+| :--- | :--- | :--- | :--- |
 | `sk_loja`  | `INTEGER` | NÃO | Surrogate Key primária da dimensão |
 | `id_loja`  | `INTEGER` | NÃO | Natural Key (identificador original da loja) |
 | `nome_loja`| `VARCHAR` | SIM | Nome fantasia / identificação da loja |
@@ -76,7 +76,7 @@ Identificação das unidades físicas e associação com localizações.
 Dimensão geográfica normalizada para agregação regional.
 
 |      Coluna     | Tipo de Dado | Nulo? | Descrição |
-
+| :--- | :--- | :--- | :--- |
 | `sk_localizacao`| `INTEGER` | NÃO | Surrogate Key primária da dimensão |
 | `cidade`        | `VARCHAR` | NÃO | Nome do município |
 | `estado`        | `VARCHAR` | NÃO | Nome do estado por extenso |
@@ -89,7 +89,7 @@ Dimensão geográfica normalizada para agregação regional.
 Dimensão de calendário para análises temporais e sazonais.
 
 |    Coluna  | Tipo de Dado | Nulo? | Descrição |
-
+| :--- | :--- | :--- | :--- |
 | `sk_tempo` | `INTEGER` | NÃO | Surrogate Key no padrão numérico `YYYYMMDD` |
 | `data`     | `DATE`    | NÃO | Data completa do evento |
 | `ano`      | `INTEGER` | NÃO | Ano do calendário (`2022`, `2023`, `2024`) |
