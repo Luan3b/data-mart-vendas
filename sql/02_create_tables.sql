@@ -6,7 +6,6 @@ CREATE TABLE dim_localizacao (
     pais VARCHAR(100) DEFAULT 'Brasil',
     UNIQUE (cidade, estado)
 );
-"""Id Cliente,Nome Completo,Genero,Data de Nacimento"""
 
 CREATE TABLE dim_cliente (
     sk_cliente SERIAL PRIMARY KEY,
@@ -15,8 +14,6 @@ CREATE TABLE dim_cliente (
     genero CHAR(1),
     data_nascimento DATE
 );
-
-"""Id Produto,Nome Produto,Categoria,Marca,Preço Unit.,Custo Unit."""
 
 CREATE TABLE dim_produto (
     sk_produto SERIAL PRIMARY KEY,
@@ -36,8 +33,6 @@ CREATE TABLE dim_tempo (
     dia INT NOT NULL,
     trimestre INT NOT NULL
 );
-
-"""Id Loja,Nome Loja,Cidade,Estado"""  
 
 CREATE TABLE dim_loja (
     sk_loja SERIAL PRIMARY KEY,

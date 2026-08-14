@@ -1,26 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-================================================================================
-                     DATA MART DE VENDAS - PIPELINE ETL
-================================================================================
-
-Orquestrador principal do processo Extract → Transform → Load → Validate
-
-Uso:
-    python main.py                  # Executa pipeline completo
-    python main.py --validate-only  # Apenas valida dados existentes
-    python main.py --help           # Mostra opcções de ajuda
-
-Variáveis de ambiente (.env):
-    DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
-    DEBUG (opcional): true para modo verbose
-    ETL_MODE (opcional): 'full' ou 'incremental'
-
-================================================================================
-"""
-
 import sys
 import os
 import argparse
@@ -55,6 +35,7 @@ from src.validation.validation import (
     validar_tabelas,
     validar_fato,
     validar_valores,
+    validar_chaves_estrangeiras,
 )
 
 # ================================================================================
@@ -272,6 +253,7 @@ def validar_dados(conn):
         validar_tabelas(cursor)
         validar_fato(cursor)
         validar_valores(cursor)
+        validar_chaves_estrangeiras(cursor)
         logger.info("   ✓ Validação concluída com sucesso!")
 
     except Exception as e:

@@ -503,4 +503,3 @@ Para dúvidas, abrir issue ou enviar PR! 🚀
 
 ---
 
-**Última atualização:** Agosto 2024
