@@ -6,13 +6,12 @@ import os
 import argparse
 import logging
 from datetime import datetime
-
-# Configurar path para importar módulos locais
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 import psycopg2
 from dotenv import load_dotenv
 import pandas as pd
+
+# Configurar path para importar módulos locais
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.extract.extract import extrair_csvs
 from src.transform.transform import (
@@ -66,10 +65,10 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 DB_CONFIG = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": int(os.getenv("DB_PORT", "5432")),
-    "database": os.getenv("DB_NAME", "datamart_vendas"),
-    "user": os.getenv("DB_USER", "postgres"),
+    "host": os.getenv("DB_HOST"),
+    "port": int(os.getenv("DB_PORT", 5432)),
+    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
 }
 
