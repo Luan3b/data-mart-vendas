@@ -19,34 +19,51 @@ def tratar_preco(valor):
 
 # 1. TRANSFORMAÇÃO DE CLIENTES
 def transformar_clientes(df_raw):
- df = df_raw.copy()
+    df = df_raw.copy()
 
- df = df[[
-     "Id Cliente",
-     "Nome Completo",
-     "Genero",
-     "Data de Nacimento",
- ]].copy()
+    df = df[[
+        "Id Cliente",
+        "Nome Completo",
+        "Genero",
+        "Data de Nacimento",
+    ]].copy()
 
- df.columns = [
-     "id_cliente",
-     "nome_cliente",
-     "genero",
-     "data_nascimento",
- ]
+    df.columns = [
+        "id_cliente",
+        "nome_cliente",
+        "genero",
+        "data_nascimento",
+    ]
 
- df["id_cliente"] = pd.to_numeric(
-     df["id_cliente"], errors="coerce"
- ).astype("Int64")
+    genero_map = {
+        "M": "Masculino",
+        "F": "Feminino",
+        "MASCULINO": "Masculino",
+        "FEMININO": "Feminino",
+    }
 
- df["data_nascimento"] = pd.to_datetime(
-     df["data_nascimento"], errors="coerce"
- )
+    df["genero"] = (
+        df["genero"]
+        .dropna()
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .map(genero_map)
+    )
 
- df = df.dropna(subset=["id_cliente"])
- df = df.drop_duplicates(subset=["id_cliente"])
+    df["id_cliente"] = pd.to_numeric(
+        df["id_cliente"], errors="coerce"
+    ).astype("Int64")
 
- return df
+    df["data_nascimento"] = pd.to_datetime(
+        df["data_nascimento"], errors="coerce"
+    )
+
+    df = df.dropna(subset=["id_cliente"])
+    df = df.drop_duplicates(subset=["id_cliente"]).reset_index(drop=True)
+    df.insert(0, "sk_cliente", range(1, len(df) + 1))
+
+    return df
 
 # 2. TRANSFORMAÇÃO DE PRODUTOS
 def transformar_produtos(df_raw):
@@ -87,49 +104,86 @@ def transformar_produtos(df_raw):
    )
 
  df = df.dropna(subset=["id_produto"])
- df = df.drop_duplicates(subset=["id_produto"])
+ df = df.drop_duplicates(subset=["id_produto"]).reset_index(drop=True)
+ df.insert(0, "sk_produto", range(1, len(df) + 1))
 
  return df
 
 # 3. TRANSFORMAÇÃO DE LOJAS
 def transformar_lojas(df_raw):
- df = df_raw.copy()
- df.columns = df.columns.str.strip()
+    df = df_raw.copy()
+    df.columns = df.columns.str.strip()
 
- df = df.dropna(subset=["Id Loja"]).copy()
- df = df[df["Id Loja"].astype(str).str.strip() != "Id Loja"]
+    df = df.dropna(subset=["Id Loja"]).copy()
+    df = df[df["Id Loja"].astype(str).str.strip() != "Id Loja"]
 
- df["id_loja"] = pd.to_numeric(df["Id Loja"], errors="coerce").astype("Int64")
+    df["id_loja"] = pd.to_numeric(
+        df["Id Loja"],
+        errors="coerce"
+    ).astype("Int64")
 
- cidade_col = "Cidade" if "Cidade" in df.columns else "Localidade"
- df["cidade"] = df[cidade_col].fillna("Não Informado")
- df["estado"] = (
-     df["Estado"].fillna("Não Informado")
-     if "Estado" in df.columns
-     else "Não Informado"
+    cidade_col = (
+        "Cidade"
+        if "Cidade" in df.columns
+        else "Localidade"
+    )
+
+    df["cidade"] = (
+        df[cidade_col]
+        .fillna("Não Informado")
+        .astype(str)
+        .str.strip()
+    )
+
+    if "Estado" in df.columns:
+        df["estado"] = (
+            df["Estado"]
+            .fillna("Não Informado")
+            .astype(str)
+            .str.strip()
+        )
+    else:
+        df["estado"] = "Não Informado"
+
+    if "Pais" in df.columns:
+        df["pais"] = (
+            df["Pais"]
+            .fillna("Não Encontrado")
+            .astype(str)
+            .str.strip()
+        )
+
+        df.loc[df["pais"] == "", "pais"] = "Não Encontrado"
+    else:
+        df["pais"] = "Não Encontrado"
+
+
+ 
+    df["nome_loja"] = (
+         "Loja "
+         + df["id_loja"].astype(str)
+         + " - "
+         + df[cidade_col].astype(str)
  )
 
- df["nome_loja"] = (
-     "Loja "
-     + df["id_loja"].astype(str)
-     + " - "
-     + df[cidade_col].astype(str)
- )
-
- df_clean = df[["id_loja", "nome_loja", "cidade", "estado"]].copy()
- return df_clean.dropna(subset=["id_loja"]).drop_duplicates(
-     subset=["id_loja"]
- )
-
-def transformar_localizacao(df_lojas):
-  df = df_lojas[["cidade", "estado"]].copy()
-  df["cidade"] = df["cidade"].fillna("Não Informado").astype(str).str.strip()
-  df["estado"] = df["estado"].fillna("Não Informado").astype(str).str.strip()
-  return df.drop_duplicates(subset=["cidade", "estado"])
-
+    df_clean = df[["id_loja",
+                "nome_loja",
+                "cidade",
+                "estado",
+                "pais" ]].copy()
+    df_clean = (
+        df_clean
+        .dropna(subset=["id_loja"])
+        .drop_duplicates(subset=["id_loja"]) 
+        .reset_index(drop=True)
+    )
+    df_clean.insert(0, "sk_loja", range(1, len(df_clean) + 1))
+    return df_clean
+ 
 def transformar_tempo(df_vendas):
 
     df = df_vendas.copy()
+
 
     df["data_venda"] = pd.to_datetime(
         df["Data Venda"],
@@ -139,6 +193,28 @@ def transformar_tempo(df_vendas):
     df = df.dropna(
         subset=["data_venda"]
     )
+    dias_semana_map = {
+        0: "Segunda-feira",
+        1: "Terça-feira",
+        2: "Quarta-feira",
+        3: "Quinta-feira",
+        4: "Sexta-feira",
+        5: "Sábado",
+        6: "Domingo"
+    }
+
+    meses_map = {
+        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+    }
+
+    trimestres_map = {
+        1: "1º Trimestre",
+        2: "2º Trimestre",
+        3: "3º Trimestre",
+        4: "4º Trimestre"
+    }
 
     df["data"] = df["data_venda"].dt.date
     df["sk_tempo"] = df["data_venda"].dt.strftime("%Y%m%d").astype(int)
@@ -146,10 +222,26 @@ def transformar_tempo(df_vendas):
     df["mes"] = df["data_venda"].dt.month
     df["dia"] = df["data_venda"].dt.day
     df["trimestre"] = df["data_venda"].dt.quarter
-    return df[
-      ["sk_tempo", "data", "ano", "mes", "dia", "trimestre"]
-  ].drop_duplicates(subset=["sk_tempo"])
 
+    df["nome_dia_semana"] = df["data_venda"].dt.dayofweek.map(dias_semana_map)
+    df["nome_mes"] = df["mes"].map(meses_map)
+    df["semestre"] = df["mes"].apply(lambda mes: "1º Semestre" if mes <= 6 else "2º Semestre")
+    df["nome_trimestre"] = df["trimestre"].map(trimestres_map)
+
+    colunas = [
+        "sk_tempo",
+        "data",
+        "ano",
+        "mes",
+        "dia",
+        "trimestre",
+        "nome_dia_semana",
+        "nome_mes",
+        "semestre",
+        "nome_trimestre",
+    ]
+
+    return df[colunas].drop_duplicates(subset=["sk_tempo"])
 # 4. TRANSFORMAÇÃO DA TABELA FATO DE VENDAS
 def transformar_fato_vendas(
     df_vendas_raw, map_clientes, map_produtos, map_lojas, map_custos

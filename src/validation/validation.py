@@ -40,7 +40,6 @@ def validar_tabelas(cursor):
         "dim_cliente",
         "dim_produto",
         "dim_loja",
-        "dim_localizacao",
         "dim_tempo",
         "fato_vendas",
     ]

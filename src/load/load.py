@@ -10,7 +10,6 @@ from src.extract.extract import extrair_csvs
 from src.transform.transform import (
     transformar_clientes,
     transformar_fato_vendas,
-    transformar_localizacao,
     transformar_lojas,
     transformar_produtos,
     transformar_tempo,
@@ -29,6 +28,7 @@ def carregar_clientes(cursor, df):
   print("\n[LOAD] Carregando clientes...")
   dados = [
       (
+          int(r.sk_cliente),
           int(r.id_cliente),
           str(r.nome_cliente),
           str(r.genero),
@@ -42,7 +42,7 @@ def carregar_clientes(cursor, df):
   ]
   execute_values(
       cursor,
-      "INSERT INTO dim_cliente (id_cliente," 
+      "INSERT INTO dim_cliente (sk_cliente, id_cliente," 
       " nome_cliente, " 
       "genero,"
       " data_nascimento)" 
@@ -57,6 +57,7 @@ def carregar_produtos(cursor, df):
   print("\n[LOAD] Carregando produtos...")
   dados = [
       (
+          int(r.sk_produto),
           int(r.id_produto),
           str(r.nome_produto),
           str(r.categoria),
@@ -68,7 +69,7 @@ def carregar_produtos(cursor, df):
   ]
   execute_values(
       cursor,
-      "INSERT INTO dim_produto (id_produto," 
+      "INSERT INTO dim_produto (sk_produto, id_produto," 
       " nome_produto," 
       " categoria, marca,"
       " preco_unitario," 
@@ -80,41 +81,37 @@ def carregar_produtos(cursor, df):
   print(f"[LOAD] Produtos carregados: {len(dados):,}")
 
 
+from psycopg2.extras import execute_values
+
 def carregar_lojas(cursor, df):
-  print("\n[LOAD] Carregando lojas...")
-  dados = [
-      (int(r.id_loja), str(r.nome_loja), str(r.cidade), str(r.estado))
-      for r in df.itertuples(index=False)
-  ]
-  execute_values(
-      cursor,
-      "INSERT INTO dim_loja (id_loja, " 
-      "nome_loja," 
-      " cidade, estado)" 
-      "VALUES %s ON CONFLICT (id_loja) DO NOTHING",
-      dados,
-      page_size=5000,
-  )
-  print(f"[LOAD] Lojas carregadas: {len(dados):,}")
+    print("\n[LOAD] Carregando lojas...")
 
+    df = df.drop_duplicates(subset=['id_loja']).copy()
+    dados = [
+        (int(r.sk_loja), int(r.id_loja), str(r.nome_loja), str(r.cidade), str(r.estado), str(r.pais))
+        for r in df.itertuples(index=False)
+    ]
 
-def carregar_localizacao(cursor, df):
-  print("\n[LOAD] Carregando localizações...")
-  dados = [
-      (str(r.cidade), str(r.estado), None, "Brasil")
-      for r in df.itertuples(index=False)
-  ]
-  execute_values(
-      cursor,
-      "INSERT INTO dim_localizacao (cidade," 
-      " estado," 
-      " sigla_estado," 
-      " pais)" 
-      " VALUES %s ON CONFLICT (cidade, estado) DO NOTHING",
-      dados,
-      page_size=1000,
-  )
-  print(f"[LOAD] Localizações carregadas: {len(dados):,}")
+    query = """
+        INSERT INTO dim_loja (
+            sk_loja,
+            id_loja,
+            nome_loja,
+            cidade,
+            estado,
+            pais
+        )
+        VALUES %s
+        ON CONFLICT (id_loja) DO NOTHING;
+    """
+
+    execute_values(
+        cursor,
+        query,
+        dados,
+        page_size=5000,
+    )
+    print(f"[LOAD] Lojas processadas: {len(dados):,}")
 
 
 def carregar_tempo(cursor, df):
@@ -127,18 +124,18 @@ def carregar_tempo(cursor, df):
           int(r.mes),
           int(r.dia),
           int(r.trimestre),
+          str(r.nome_dia_semana),
+          str(r.nome_mes),
+          str(r.semestre),
+          str(r.nome_trimestre),
       )
       for r in df.itertuples(index=False)
   ]
   execute_values(
       cursor,
-      "INSERT INTO dim_tempo (sk_tempo," 
-      " data, " 
-      "ano," 
-      " mes, " 
-      "dia," 
-      " trimestre)" 
-      " VALUES %s ON CONFLICT (sk_tempo) DO NOTHING",
+      "INSERT INTO dim_tempo ("
+      "sk_tempo, data, ano, mes, dia, trimestre, nome_dia_semana, nome_mes, semestre, nome_trimestre) "
+      "VALUES %s ON CONFLICT (sk_tempo) DO NOTHING",
       dados,
       page_size=1000,
   )
@@ -222,7 +219,6 @@ def main():
   df_cli = transformar_clientes(df_cli_raw)
   df_prod = transformar_produtos(df_prod_raw)
   df_lojas = transformar_lojas(df_loja_raw)
-  df_loc = transformar_localizacao(df_lojas)
   df_tempo = transformar_tempo(df_vendas_raw)
 
   print("\n[TRANSFORM] Dados transformados com sucesso!")
@@ -244,7 +240,6 @@ def main():
     carregar_clientes(cursor, df_cli)
     carregar_produtos(cursor, df_prod)
     carregar_lojas(cursor, df_lojas)
-    carregar_localizacao(cursor, df_loc)
     carregar_tempo(cursor, df_tempo)
 
     # 4. BUSCA MAPAS DAS SURROGATE KEYS NO BANCO (id_* -> sk_*)

@@ -18,7 +18,6 @@ from src.transform.transform import (
     transformar_clientes,
     transformar_produtos,
     transformar_lojas,
-    transformar_localizacao,
     transformar_tempo,
     transformar_fato_vendas,
 )
@@ -26,7 +25,6 @@ from src.load.load import (
     carregar_clientes,
     carregar_produtos,
     carregar_lojas,
-    carregar_localizacao,
     carregar_tempo,
     carregar_fato_vendas,
 )
@@ -99,7 +97,6 @@ def criar_tabelas(conn):
     cursor = conn.cursor()
 
     try:
-        # Verifica se a tabela fato_vendas já existe
         cursor.execute("""
             SELECT EXISTS(
                 SELECT 1 FROM information_schema.tables 
@@ -111,24 +108,36 @@ def criar_tabelas(conn):
 
         if tabela_existe:
             logger.info("   ✓ Tabelas já existem no banco")
-            cursor.close()
-            return
+        else:
+            logger.info("   ⚠️  Tabelas não encontradas. Criando...")
 
-        logger.info("   ⚠️  Tabelas não encontradas. Criando...")
+            script_path = "sql/02_create_tables.sql"
+            with open(script_path, "r", encoding="utf-8") as f:
+                script = f.read()
 
-        # Ler e executar script de criação
-        script_path = "sql/02_create_tables.sql"
-        with open(script_path, "r", encoding="utf-8") as f:
-            script = f.read()
+            for statement in script.split(";"):
+                statement = statement.strip()
+                if statement:
+                    cursor.execute(statement)
 
-        # Dividir por semicolons e executar cada statement
-        for statement in script.split(";"):
-            statement = statement.strip()
-            if statement:
-                cursor.execute(statement)
+            conn.commit()
+            logger.info("   ✓ Tabelas criadas com sucesso!")
+
+        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dim_tempo'")
+        colunas = {row[0] for row in cursor.fetchall()}
+
+        if 'semestre' not in colunas:
+            cursor.execute("ALTER TABLE dim_tempo ADD COLUMN IF NOT EXISTS semestre VARCHAR(20);")
+        else:
+            cursor.execute("ALTER TABLE dim_tempo ALTER COLUMN semestre TYPE VARCHAR(20);")
+
+        if 'nome_trimestre' not in colunas:
+            cursor.execute("ALTER TABLE dim_tempo ADD COLUMN IF NOT EXISTS nome_trimestre VARCHAR(20);")
+
+        cursor.execute("ALTER TABLE dim_loja DROP CONSTRAINT IF EXISTS dim_loja_cidade_estado_key;")
+        cursor.execute("ALTER TABLE dim_cliente ALTER COLUMN genero TYPE VARCHAR(20);")
 
         conn.commit()
-        logger.info("   ✓ Tabelas criadas com sucesso!")
 
     except Exception as e:
         conn.rollback()
@@ -175,16 +184,13 @@ def transformar_dados(df_clientes_raw, df_produtos_raw, df_lojas_raw, df_vendas_
         df_lojas = transformar_lojas(df_lojas_raw)
         logger.info(f"   ✓ Lojas transformadas: {len(df_lojas):,}")
 
-        df_localizacao = transformar_localizacao(df_lojas)
-        logger.info(f"   ✓ Localizações extraídas: {len(df_localizacao):,}")
-
         df_tempo = transformar_tempo(df_vendas_raw)
         logger.info(f"   ✓ Dimensão tempo criada: {len(df_tempo):,} datas únicas")
 
-        # Tabela Fato (requer mapas de lookup)
-        map_clientes = dict(zip(df_clientes["id_cliente"], df_clientes.index + 1))
-        map_produtos = dict(zip(df_produtos["id_produto"], df_produtos.index + 1))
-        map_lojas = dict(zip(df_lojas["id_loja"], df_lojas.index + 1))
+        # Tabela Fato (requer mapas de lookup usando os surrogate keys reais da dimensão)
+        map_clientes = dict(zip(df_clientes["id_cliente"], df_clientes["sk_cliente"]))
+        map_produtos = dict(zip(df_produtos["id_produto"], df_produtos["sk_produto"]))
+        map_lojas = dict(zip(df_lojas["id_loja"], df_lojas["sk_loja"]))
         map_custos = dict(zip(df_produtos["id_produto"], df_produtos["custo_unitario"]))
 
         df_fato = transformar_fato_vendas(
@@ -196,7 +202,7 @@ def transformar_dados(df_clientes_raw, df_produtos_raw, df_lojas_raw, df_vendas_
         )
         logger.info(f"   ✓ Fato de vendas calculada: {len(df_fato):,} transações")
 
-        return df_clientes, df_produtos, df_lojas, df_localizacao, df_tempo, df_fato
+        return df_clientes, df_produtos, df_lojas, df_tempo, df_fato
 
     except Exception as e:
         logger.error(f"❌ ERRO ao transformar dados: {e}")
@@ -211,7 +217,6 @@ def carregar_dados(
     df_clientes,
     df_produtos,
     df_lojas,
-    df_localizacao,
     df_tempo,
     df_fato,
 ):
@@ -224,7 +229,6 @@ def carregar_dados(
         carregar_clientes(cursor, df_clientes)
         carregar_produtos(cursor, df_produtos)
         carregar_lojas(cursor, df_lojas)
-        carregar_localizacao(cursor, df_localizacao)
         carregar_tempo(cursor, df_tempo)
         carregar_fato_vendas(cursor, df_fato)
 
@@ -282,7 +286,7 @@ def executar_pipeline():
     df_clientes_raw, df_produtos_raw, df_lojas_raw, df_vendas_raw = extrair_dados()
 
     # 4. Transformar
-    df_clientes, df_produtos, df_lojas, df_localizacao, df_tempo, df_fato = (
+    df_clientes, df_produtos, df_lojas, df_tempo, df_fato = (
         transformar_dados(df_clientes_raw, df_produtos_raw, df_lojas_raw, df_vendas_raw)
     )
 
@@ -292,7 +296,6 @@ def executar_pipeline():
         df_clientes,
         df_produtos,
         df_lojas,
-        df_localizacao,
         df_tempo,
         df_fato,
     )
