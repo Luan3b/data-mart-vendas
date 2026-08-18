@@ -1,17 +1,9 @@
-CREATE TABLE dim_localizacao (
-    sk_localizacao SERIAL PRIMARY KEY,
-    cidade VARCHAR(100) NOT NULL,
-    estado VARCHAR(100) NOT NULL,
-    sigla_estado CHAR(2),
-    pais VARCHAR(100) DEFAULT 'Brasil',
-    UNIQUE (cidade, estado)
-);
 
 CREATE TABLE dim_cliente (
     sk_cliente SERIAL PRIMARY KEY,
     id_cliente INT NOT NULL UNIQUE,
     nome_cliente VARCHAR(150) NOT NULL,
-    genero CHAR(1),
+    genero VARCHAR(20),
     data_nascimento DATE
 );
 
@@ -31,7 +23,11 @@ CREATE TABLE dim_tempo (
     ano INT NOT NULL,
     mes INT NOT NULL,
     dia INT NOT NULL,
-    trimestre INT NOT NULL
+    trimestre INT NOT NULL,
+    nome_dia_semana VARCHAR(20) NOT NULL,
+    nome_mes VARCHAR(20) NOT NULL,
+    semestre VARCHAR(20) NOT NULL,
+    nome_trimestre VARCHAR(20) NOT NULL
 );
 
 CREATE TABLE dim_loja (
@@ -39,7 +35,8 @@ CREATE TABLE dim_loja (
     id_loja INT NOT NULL UNIQUE,
     nome_loja VARCHAR(150),
     cidade VARCHAR(100),
-    estado VARCHAR(100)
+    estado VARCHAR(100),
+    pais VARCHAR(100)
 );
 
 CREATE TABLE fato_vendas (

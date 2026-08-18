@@ -80,3 +80,57 @@ GROUP BY l.nome_loja, l.cidade, l.estado
 HAVING SUM(f.valor_devolvido) > 0
 ORDER BY taxa_devolucao_pct DESC
 LIMIT 10;
+
+
+
+-- ============================================================================
+-- ANÁLISE TEMPORAL AVANÇADA: CRESCIMENTO MoM E RECEITA ACUMULADA (YTD)
+-- ============================================================================
+
+WITH vendas_mensais AS (
+    SELECT
+        t.ano,
+        t.mes,
+        COUNT(f.sk_venda) AS total_pedidos,
+        COUNT(DISTINCT f.sk_cliente) AS clientes_unicos,
+        SUM(f.receita_liquida) AS receita_mes,
+        SUM(f.lucro_bruto) AS lucro_mes
+    FROM fato_vendas f
+    JOIN dim_tempo t ON f.sk_tempo = t.sk_tempo
+    GROUP BY t.ano, t.mes
+)
+SELECT
+    ano,
+    mes,
+    total_pedidos,
+    clientes_unicos,
+    receita_mes,
+    lucro_mes,
+    
+    -- 1. Receita do mês anterior dentro do mesmo ano
+    LAG(receita_mes, 1) OVER (
+        PARTITION BY ano 
+        ORDER BY mes
+    ) AS receita_mes_anterior,
+
+    -- 2. Variação percentual de faturamento mês a mês (MoM Growth %)
+    ROUND(
+        (
+            (receita_mes - LAG(receita_mes, 1) OVER (PARTITION BY ano ORDER BY mes))
+            / NULLIF(LAG(receita_mes, 1) OVER (PARTITION BY ano ORDER BY mes), 0)
+        ) * 100, 
+        2
+    ) AS crescimento_mom_pct,
+
+    -- 3. Receita acumulada no ano (Year-to-Date / YTD)
+    SUM(receita_mes) OVER (
+        PARTITION BY ano 
+        ORDER BY mes 
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS receita_acumulada_ano,
+
+    -- 4. Margem de lucro consolidada do mês
+    ROUND((lucro_mes / NULLIF(receita_mes, 0)) * 100, 2) AS margem_lucro_pct
+
+FROM vendas_mensais
+ORDER BY ano, mes;
