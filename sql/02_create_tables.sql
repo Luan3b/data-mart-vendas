@@ -1,13 +1,22 @@
 
-CREATE TABLE dim_cliente (
+CREATE TABLE IF NOT EXISTS dim_cliente (
     sk_cliente SERIAL PRIMARY KEY,
-    id_cliente INT NOT NULL UNIQUE,
+    id_cliente INT NOT NULL,
     nome_cliente VARCHAR(150) NOT NULL,
     genero VARCHAR(20),
-    data_nascimento DATE
+    data_nascimento DATE,
+    data_inicio DATE NOT NULL,
+    data_fim DATE,
+    is_current BOOLEAN NOT NULL DEFAULT TRUE,
+    versao INT NOT NULL DEFAULT 1
 );
 
-CREATE TABLE dim_produto (
+CREATE UNIQUE INDEX IF NOT EXISTS uk_dim_cliente_atual
+ON dim_cliente (id_cliente)
+WHERE is_current = TRUE;
+CREATE INDEX IF NOT EXISTS idx_dim_cliente_lookup ON dim_cliente(id_cliente, is_current);
+
+CREATE TABLE IF NOT EXISTS dim_produto (
     sk_produto SERIAL PRIMARY KEY,
     id_produto INT NOT NULL UNIQUE,
     nome_produto VARCHAR(150) NOT NULL,
@@ -17,7 +26,7 @@ CREATE TABLE dim_produto (
     custo_unitario NUMERIC(15,2)
 );
 
-CREATE TABLE dim_tempo (
+CREATE TABLE IF NOT EXISTS dim_tempo (
     sk_tempo INT PRIMARY KEY,
     data DATE NOT NULL UNIQUE,
     ano INT NOT NULL,
@@ -30,7 +39,7 @@ CREATE TABLE dim_tempo (
     nome_trimestre VARCHAR(20) NOT NULL
 );
 
-CREATE TABLE dim_loja (
+CREATE TABLE IF NOT EXISTS dim_loja (
     sk_loja SERIAL PRIMARY KEY,
     id_loja INT NOT NULL UNIQUE,
     nome_loja VARCHAR(150),
@@ -39,7 +48,7 @@ CREATE TABLE dim_loja (
     pais VARCHAR(100)
 );
 
-CREATE TABLE fato_vendas (
+CREATE TABLE IF NOT EXISTS fato_vendas (
     sk_venda BIGSERIAL PRIMARY KEY,
 
     sk_cliente INT NOT NULL,
