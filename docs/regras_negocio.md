@@ -21,9 +21,9 @@ Todas as métricas financeiras são pré-calculadas linha a linha no módulo de 
 
 ## 2. Regras de Higienização e Tratamento
 
-* **Sanitização de Valores Monetários:** Valores com formatações atípicas (ex.: `"2278.,8"`) são padronizados para formato decimal (`2278.8`) e convertidos para `Float64`.
-* **Tratamento de Nulos:** Registros com identificadores de negócio ausentes nas dimensões são descartados para evitar quebra de integridade referencial.
-* **Padronização de Gênero:** Padronização em caracteres únicos (`M`, `F`, etc.).
+* **Sanitização de Valores Monetários:** Valores com formatações atípicas (ex.: `"2278.,8"`) são padronizados para formato decimal (`2278.8`) durante a transformação e gravados no PostgreSQL como `NUMERIC(15,2)`.
+* **Tratamento de Nulos:** Registros sem identificadores ou data de venda válidos não são enviados para a tabela fato. Valores numéricos ausentes são preenchidos com zero durante o cálculo das métricas.
+* **Padronização de Gênero:** Valores `M` e `F` são convertidos para `Masculino` e `Feminino`; valores não mapeados tornam-se nulos.
 * **Estruturação de Cabeçalhos:** Linhas de metadados e linhas em branco no topo de planilhas brutas (como a de lojas) são descartadas na extração.
 
 ---
@@ -32,4 +32,8 @@ Todas as métricas financeiras são pré-calculadas linha a linha no módulo de 
 
 * **Unicidade nas Dimensões:** Chaves naturais (`id_cliente`, `id_produto`, `id_loja`) são deduplicadas antes da carga.
 * **Substituição por Surrogate Keys (SKs):** Toda chave de negócio na tabela fato é substituída por um identificador numérico interno gerado no Data Mart.
-* **Dimensão Tempo Obrigatória:** Toda transação deve possuir data válida convertida no formato de chave inteira `YYYYMMDD`.
+* **Dimensão Tempo Obrigatória:** Toda transação carregada deve possuir data válida convertida no formato de chave inteira `YYYYMMDD`.
+
+## 4. Histórico de Clientes
+
+Alterações em nome, gênero ou data de nascimento geram uma nova versão em `dim_cliente` (SCD Tipo 2). A versão anterior é marcada como não vigente e preservada para histórico.

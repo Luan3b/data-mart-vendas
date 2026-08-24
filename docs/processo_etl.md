@@ -46,20 +46,19 @@ A etapa de extração é responsável por ler os arquivos `.csv` armazenados no 
 
 **Cadastros:**
 
-- `clientes.csv`
-- `produtos.csv`
-- `lojas.csv`
+- `Cadastro Clientes.xlsx - Planilha1.csv`
+- `Cadastro Produto.xlsx - Produto.csv`
+- `Cadastro Lojas.xlsx - Planilha1.csv`
 
 **Transações de vendas:**
 
-- `vendas_2022.csv`
-- `vendas_2023.csv`
-- `vendas_2024.csv`
+- `Base Vendas - 2022.xlsx - 2022.csv`
+- `Base Vendas - 2023.xlsx - 2023.csv`
+- `Base Vendas - 2024.xlsx - 2024.csv`
 
 ### Lógica de Extração
 
-- Unificação dos arquivos anuais de vendas em um único DataFrame consolidado: `vendas_raw`.
-- Volume superior a **1,14 milhão de transações**.
+- Unificação dos arquivos de 2022, 2023 e 2024 em um único DataFrame consolidado: `vendas_raw`.
 - Tratamento de encodings e delimitadores padrão durante a leitura.
 
 ---
@@ -102,7 +101,6 @@ O tratamento é realizado utilizando operações de `regex`/`replace`.
 | `dim_cliente` | Deduplicação por `id_cliente` e padronização de `nome_cliente`, `genero` e `data_nascimento`. |
 | `dim_produto` | Deduplicação por `id_produto` e tipagem de custos e preços. |
 | `dim_loja` | Mapeamento unificado das unidades físicas. |
-| `dim_localizacao` | Extração e normalização dos pares únicos de cidade e estado. |
 | `dim_tempo` | Geração da dimensão calendário a partir das datas das vendas. |
 
 A `dim_tempo` extrai:
@@ -145,7 +143,7 @@ Antes da inserção da tabela fato, o script consulta o banco para obter os iden
 | `id_loja` | `sk_loja` |
 | `data` | `sk_tempo` (`YYYYMMDD`) |
 
-Os IDs de negócio são substituídos pelas respectivas chaves substitutas inteiras.
+Os IDs de negócio são substituídos pelas respectivas chaves substitutas inteiras. A data da venda é convertida para `sk_tempo` no padrão `YYYYMMDD`.
 
 ### 4.2 Otimização de Ingestão em Lotes
 
@@ -195,7 +193,7 @@ Ao término do carregamento, a suíte de testes automatizados valida os principa
 
 ### Testes Realizados
 
-- **Teste de Volume:** confirmação de mais de 1,1 milhão de registros na `fato_vendas`.
+- **Teste de Volume:** confirmação do volume mínimo definido no teste de banco.
 - **Teste de Nulidade:** garantia de que nenhuma chave substituta (`sk_*`) contenha valores nulos.
 - **Teste de Consistência Numérica:** ausência de preços ou quantidades negativas indevidas.
 - **Teste de Integridade Referencial:** validação da ausência de registros órfãos, garantindo que todas as vendas estejam conectadas às dimensões.
@@ -238,12 +236,12 @@ VALIDATION
 ```
 data/
 └── raw/
-    ├── clientes.csv
-    ├── produtos.csv
-    ├── lojas.csv
-    ├── vendas_2022.csv
-    ├── vendas_2023.csv
-    └── vendas_2024.csv
+    ├── Cadastro Clientes.xlsx - Planilha1.csv
+    ├── Cadastro Produto.xlsx - Produto.csv
+    ├── Cadastro Lojas.xlsx - Planilha1.csv
+    ├── Base Vendas - 2022.xlsx - 2022.csv
+    ├── Base Vendas - 2023.xlsx - 2023.csv
+    └── Base Vendas - 2024.xlsx - 2024.csv
 
 src/
 ├── extract/
@@ -254,7 +252,9 @@ src/
     └── load.py
 
 tests/
+├── test_transform.py
+└── test_database.py
 
 docs/
-└── ETL_PROCESS.md
+└── processo_etl.md
 ```

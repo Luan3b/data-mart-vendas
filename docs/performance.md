@@ -14,8 +14,8 @@ Este documento descreve as estratégias adotadas para garantir alta performance 
 
 ## 2. Otimizações no Banco de Dados (PostgreSQL)
 
-* **Carga em Lote (*Batch Loading*):** Utilização do método `psycopg2.extras.execute_values` com paginação (`page_size=10000`), reduzindo o overhead de rede e transações individuais.
-* **Controle Transacional Atômico:** Um único `commit` ao término da carga completa da fato, evitando gravações parciais no disco.
+* **Carga em Lote (*Batch Loading*):** Utilização de `psycopg2.extras.execute_values`, com páginas de 5.000 registros nas dimensões, 1.000 na dimensão tempo e 10.000 na tabela fato.
+* **Controle Transacional:** O orquestrador confirma a carga após concluir todas as dimensões e a tabela fato; em caso de erro durante a carga, executa `rollback`.
 
 ---
 
