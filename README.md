@@ -1,6 +1,6 @@
 # 📊 Data Mart de Vendas
 
-Um **Data Mart analítico** moderno e escalável construído em **Python + PostgreSQL**, consolidando dados transacionais de vendas (2022-2024) em um modelo **Star Schema** otimizado para análises de BI.
+Um **Data Mart analítico** construído em **Python + PostgreSQL**, consolidando dados transacionais de vendas de 2022 a 2024 em um modelo dimensional otimizado para análises de BI.
 
 ---
 
@@ -24,7 +24,7 @@ Um **Data Mart analítico** moderno e escalável construído em **Python + Postg
 
 Este projeto implementa um **pipeline ETL (Extract → Transform → Load)** completo que:
 
-✅ **Consolida** dados de 3 arquivos de vendas (2022, 2023, 2024) + cadastros  
+✅ **Consolida** dados de 3 arquivos de vendas (2022, 2023 e 2024) + cadastros
 ✅ **Limpa e padroniza** informações com regras de negócio  
 ✅ **Carrega** em banco PostgreSQL com performance otimizada  
 ✅ **Valida** integridade referencial automaticamente  
@@ -32,10 +32,10 @@ Este projeto implementa um **pipeline ETL (Extract → Transform → Load)** com
 
 ### 📊 Dados Processados
 
-- **1.145.961+** registros de vendas
-- **6 tabelas** (1 fato + 5 dimensões)
-- **15 métricas** financeiras pré-calculadas
-- **3 anos** de histórico transacional
+- Registros de vendas dos arquivos de 2022, 2023 e 2024
+- **5 tabelas** (1 fato + 4 dimensões)
+- Métricas financeiras pré-calculadas na tabela fato
+- Histórico conforme os arquivos disponíveis em `data/raw/`
 
 ---
 
@@ -53,10 +53,10 @@ Este projeto implementa um **pipeline ETL (Extract → Transform → Load)** com
   ├─ Lojas         →    ├──────────────────┤   →   ├─ dim_produto
   └─ Vendas 22-24  →    │ 2. TRANSFORM     │   →   ├─ dim_loja
                         ├──────────────────┤   →   ├─ dim_tempo
-                        │ 3. LOAD          │   →   ├─ dim_localizacao
-                        ├──────────────────┤   →   └─ fato_vendas
-                        │ 4. VALIDATE      │   →   
-                        └──────────────────┘   →   1.145.961 linhas
+                        │ 3. LOAD          │   →   └─ dim_tempo
+                        ├──────────────────┤       └─ fato_vendas
+                        │ 4. VALIDATE      │
+                        └──────────────────┘
 ```
 
 ### Modelo Dimensional (Star Schema)
@@ -71,10 +71,10 @@ Este projeto implementa um **pipeline ETL (Extract → Transform → Load)** com
 │ dim_produto  │───────►│ fato_vendas │◄──────│  dim_loja    │
 └──────────────┘        └──────┬──────┘       └──────┬───────┘
   sk_produto                   │ sk_tempo            │
-                               ▼                     ▼
-                       ┌──────────────┐     ┌──────────────────┐
-                       │  dim_tempo   │     │ dim_localizacao  │
-                       └──────────────┘     └──────────────────┘
+                                   ▼
+                               ┌──────────────┐
+                               │  dim_tempo   │
+                               └──────────────┘
 ```
 
 ---
@@ -103,8 +103,7 @@ data-mart-vendas/
 │   ├── 01_create_database.sql      ← Criação do banco
 │   ├── 02_create_tables.sql        ← Criação das tabelas
 │   ├── 03_indexes.sql              ← Índices de performance
-│   ├── 04_queries.sql              ← Queries analíticas (WIP)
-│   └── 05_dropa.sql                ← Script de limpeza (WIP)
+│   └── 04_queries.sql              ← Queries analíticas
 │
 ├── 📂 src/
 │   ├── extract/
@@ -122,7 +121,7 @@ data-mart-vendas/
 │   └── test_database.py            ← Testes de integridade
 │
 ├── 📂 docs/
-│   ├── analise.md                  ← Análises esperadas (WIP)
+│   ├── analise.md                  ← Análises de negócio
 │   ├── data_dictionary.md          ← Dicionário de dados 📖
 │   ├── modelo_dimensional.md       ← Diagrama e justificativas 📐
 │   ├── performance.md              ← Otimizações ⚡

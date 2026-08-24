@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime
 from src.extract.extract import extrair_csvs
 
 
@@ -18,7 +19,7 @@ def tratar_preco(valor):
        return None
 
 # 1. TRANSFORMAÇÃO DE CLIENTES
-def transformar_clientes(df_raw):
+def transformar_clientes(df_raw, data_referencia=None):
     df = df_raw.copy()
 
     df = df[[
@@ -61,7 +62,13 @@ def transformar_clientes(df_raw):
 
     df = df.dropna(subset=["id_cliente"])
     df = df.drop_duplicates(subset=["id_cliente"]).reset_index(drop=True)
+
+    data_ref = data_referencia if data_referencia else datetime.now().date()
     df.insert(0, "sk_cliente", range(1, len(df) + 1))
+
+    df["data_inicio"] = data_ref
+    df["data_fim"] = None
+    df["is_current"] = True
 
     return df
 

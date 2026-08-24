@@ -77,6 +77,10 @@ ETL_MODE = os.getenv("ETL_MODE", "full")
 # FUNÇÕES PRINCIPAIS
 # ================================================================================
 
+def obter_mapa_clientes(cursor):
+    """Busca o mapa de sk_cliente ativo no banco para lookup na Fato."""
+    cursor.execute("SELECT id_cliente, sk_cliente FROM dim_cliente WHERE is_current = TRUE;")
+    return dict(cursor.fetchall())
 
 def criar_conexao():
     """Estabelece conexão com PostgreSQL."""
@@ -88,7 +92,6 @@ def criar_conexao():
     except psycopg2.Error as e:
         logger.error(f"❌ ERRO ao conectar ao banco: {e}")
         sys.exit(1)
-
 
 def criar_tabelas(conn):
     """Cria as tabelas do Data Mart (se não existirem)."""

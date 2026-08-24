@@ -13,10 +13,10 @@ def extrair_csvs():
   df_lojas = pd.read_csv(os.path.join(DATA_RAW_DIR, "Cadastro Lojas.xlsx - Planilha1.csv"), header=3)
   df_vendas_2022 = pd.read_csv(os.path.join(DATA_RAW_DIR, "Base Vendas - 2022.xlsx - 2022.csv"))
   df_vendas_2024 = pd.read_csv(os.path.join(DATA_RAW_DIR, "Base Vendas - 2024.xlsx - 2024.csv"))
-  #df_vendas_2023 = pd.read_csv(os.path.join(DATA_RAW_DIR, "Base Vendas - 2023.xlsx - 2023.csv"))
+  df_vendas_2023 = pd.read_csv(os.path.join(DATA_RAW_DIR, "Base Vendas - 2023.xlsx - 2023.csv"))
 
 # Junta as bases de vendas em uma única tabela  
-  df_vendas = pd.concat( [ df_vendas_2022, df_vendas_2024 ], ignore_index=True )
+  df_vendas = pd.concat( [ df_vendas_2022, df_vendas_2024, df_vendas_2023 ], ignore_index=True )
 
   print("✅ [EXTRACT] Leitura dos arquivos finalizada com sucesso!")
   return df_clientes, df_produtos, df_lojas, df_vendas

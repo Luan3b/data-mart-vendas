@@ -24,34 +24,121 @@ DB_CONFIG = {
 }
 
 
-def carregar_clientes(cursor, df):
-  print("\n[LOAD] Carregando clientes...")
-  dados = [
-      (
-          int(r.sk_cliente),
-          int(r.id_cliente),
-          str(r.nome_cliente),
-          str(r.genero),
-          (
-              r.data_nascimento.to_pydatetime()
-              if pd.notna(r.data_nascimento)
-              else None
-          ),
-      )
-      for r in df.itertuples(index=False)
-  ]
-  execute_values(
-      cursor,
-      "INSERT INTO dim_cliente (sk_cliente, id_cliente," 
-      " nome_cliente, " 
-      "genero,"
-      " data_nascimento)" 
-      " VALUES %s ON CONFLICT (id_cliente) DO NOTHING",
-      dados,
-      page_size=5000,
-  )
-  print(f"[LOAD] Clientes carregados: {len(dados):,}")
+def carregar_clientes(cursor, df_novos):
+    print("\n[LOAD] Processando SCD Tipo 2 para dim_cliente...")
 
+    # A chave surrogate pertence ao banco; o DataFrame pode conter uma chave
+    # provisoria criada durante a transformacao e ela nao participa do merge.
+    df_novos = df_novos.drop(columns=["sk_cliente"], errors="ignore")
+
+    # 1. Busca versões ativas atuais no banco
+    cursor.execute("""
+        SELECT sk_cliente, id_cliente, nome_cliente, genero, data_nascimento, versao
+        FROM dim_cliente
+        WHERE is_current = TRUE;
+    """)
+    rows = cursor.fetchall()
+    
+    colunas_banco = ["sk_cliente", "id_cliente", "nome_cliente", "genero", "data_nascimento", "versao"]
+    df_atuais = pd.DataFrame(rows, columns=colunas_banco)
+
+    # Carga Inicial (tabela vazia)
+    if df_atuais.empty:
+        print("   -> Carga inicial: inserindo todos os registros.")
+        dados_iniciais = [
+            (
+                int(r.id_cliente),
+                str(r.nome_cliente),
+                str(r.genero),
+                r.data_nascimento,
+                r.data_inicio,
+                None,
+                True,
+                1
+            )
+            for r in df_novos.itertuples(index=False)
+        ]
+        
+        query_insert = """
+            INSERT INTO dim_cliente (
+                id_cliente, nome_cliente, genero, data_nascimento, 
+                data_inicio, data_fim, is_current, versao
+            ) VALUES %s;
+        """
+        psycopg2.extras.execute_values(cursor, query_insert, dados_iniciais, page_size=5000)
+        print(f"[LOAD] Clientes inseridos: {len(dados_iniciais):,}")
+        return
+
+    # 2. Identificação de Novos vs Alterados
+    df_merge = pd.merge(
+        df_novos, 
+        df_atuais, 
+        on="id_cliente", 
+        how="left", 
+        suffixes=("_novo", "_atual")
+    )
+
+    novos_clientes = df_merge[df_merge["sk_cliente"].isna()].copy()
+    
+    alterados = df_merge[
+        df_merge["sk_cliente"].notna() & (
+            (df_merge["nome_cliente_novo"].astype(str) != df_merge["nome_cliente_atual"].astype(str)) |
+            (df_merge["genero_novo"].astype(str) != df_merge["genero_atual"].astype(str)) |
+            (df_merge["data_nascimento_novo"] != df_merge["data_nascimento_atual"])
+        )
+    ].copy()
+
+    # 3. Expirar versão anterior dos registros alterados
+    if not alterados.empty:
+        sks_para_expirar = alterados["sk_cliente"].astype(int).tolist()
+        data_corte = df_novos["data_inicio"].iloc[0]
+
+        cursor.execute("""
+            UPDATE dim_cliente
+            SET is_current = FALSE,
+                data_fim = %s
+            WHERE sk_cliente = ANY(%s);
+        """, (data_corte, sks_para_expirar))
+        print(f"   -> Registros antigos arquivados (is_current=False): {len(sks_para_expirar):,}")
+
+    # 4. Inserir novos clientes + novas versões dos alterados
+    linhas_para_inserir = []
+
+    for r in novos_clientes.itertuples(index=False):
+        linhas_para_inserir.append((
+            int(r.id_cliente),
+            str(r.nome_cliente),
+            str(r.genero),
+            r.data_nascimento,
+            r.data_inicio,
+            None,
+            True,
+            1
+        ))
+
+    for r in alterados.itertuples(index=False):
+        linhas_para_inserir.append((
+            int(r.id_cliente),
+            str(r.nome_cliente_novo),
+            str(r.genero_novo),
+            r.data_nascimento_novo,
+            r.data_inicio,
+            None,
+            True,
+            int(r.versao) + 1
+        ))
+
+    if linhas_para_inserir:
+        query_insert = """
+            INSERT INTO dim_cliente (
+                id_cliente, nome_cliente, genero, data_nascimento, 
+                data_inicio, data_fim, is_current, versao
+            ) VALUES %s;
+        """
+        psycopg2.extras.execute_values(cursor, query_insert, linhas_para_inserir, page_size=5000)
+
+    print(f"[LOAD] Novos clientes inseridos: {len(novos_clientes):,}")
+    print(f"[LOAD] Novas versões criadas (SCD2): {len(alterados):,}")
 
 def carregar_produtos(cursor, df):
   print("\n[LOAD] Carregando produtos...")
